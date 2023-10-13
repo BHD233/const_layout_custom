@@ -1,11 +1,15 @@
 from data.rico import Rico
 from data.publaynet import PubLayNet
 from data.magazine import Magazine
+from data.visily import Visily
 
 
 def get_dataset(name, split, transform=None):
     if name == "rico":
         return Rico(split, transform)
+
+    elif name == "visily":
+        return Visily(split, transform)
 
     elif name == "publaynet":
         return PubLayNet(split, transform)

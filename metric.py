@@ -12,17 +12,18 @@ from util import convert_xywh_to_ltrb
 from data.util import RelSize, RelLoc, detect_size_relation, detect_loc_relation
 
 
-class LayoutFID():
-    def __init__(self, dataset_name, device='cpu'):
-        num_label = 13 if dataset_name == 'rico' else 5
+class LayoutFID:
+    def __init__(self, dataset_name, device="cpu"):
+        num_label = 13 if dataset_name == "rico" else 5
         self.model = LayoutNet(num_label).to(device)
 
         # load pre-trained LayoutNet
-        tmpl = './pretrained/layoutnet_{}.pth.tar'
-        state_dict = torch.load(tmpl.format(dataset_name), map_location=device)
-        self.model.load_state_dict(state_dict)
-        self.model.requires_grad_(False)
-        self.model.eval()
+        tmpl = "./pretrained/layoutnet_{}.pth.tar"
+        if dataset_name != "visily":
+            state_dict = torch.load(tmpl.format(dataset_name), map_location=device)
+            self.model.load_state_dict(state_dict)
+            self.model.requires_grad_(False)
+            self.model.eval()
 
         self.real_features = []
         self.fake_features = []
@@ -33,7 +34,7 @@ class LayoutFID():
 
         feats = self.model.extract_features(bbox.detach(), label, padding_mask)
         features = self.real_features if real else self.fake_features
-        features.append(feats.cpu().numpy())
+        features.append(feats.detach().numpy())
 
     def compute_score(self):
         feats_1 = np.concatenate(self.fake_features)
@@ -73,8 +74,7 @@ def compute_iou(box_1, box_2):
     t_max = lib.maximum(t1, t2)
     b_min = lib.minimum(b1, b2)
     cond = (l_max < r_min) & (t_max < b_min)
-    ai = lib.where(cond, (r_min - l_max) * (b_min - t_max),
-                   lib.zeros_like(a1[0]))
+    ai = lib.where(cond, (r_min - l_max) * (b_min - t_max), lib.zeros_like(a1[0]))
 
     au = a1 + a2 - ai
     iou = ai / au
@@ -83,7 +83,7 @@ def compute_iou(box_1, box_2):
 
 
 def __compute_maximum_iou_for_layout(layout_1, layout_2):
-    score = 0.
+    score = 0.0
     (bi, li), (bj, lj) = layout_1, layout_2
     N = len(bi)
     for l in list(set(li.tolist())):
@@ -103,10 +103,12 @@ def __compute_maximum_iou(layouts_1_and_2):
     N, M = len(layouts_1), len(layouts_2)
     ii, jj = np.meshgrid(range(N), range(M))
     ii, jj = ii.flatten(), jj.flatten()
-    scores = np.asarray([
-        __compute_maximum_iou_for_layout(layouts_1[i], layouts_2[j])
-        for i, j in zip(ii, jj)
-    ]).reshape(N, M)
+    scores = np.asarray(
+        [
+            __compute_maximum_iou_for_layout(layouts_1[i], layouts_2[j])
+            for i, j in zip(ii, jj)
+        ]
+    ).reshape(N, M)
     ii, jj = linear_sum_assignment(scores, maximize=True)
     return scores[ii, jj]
 
@@ -152,11 +154,9 @@ def compute_overlap(bbox, mask):
     t_max = torch.maximum(t1, t2)
     b_min = torch.minimum(b1, b2)
     cond = (l_max < r_min) & (t_max < b_min)
-    ai = torch.where(cond, (r_min - l_max) * (b_min - t_max),
-                     torch.zeros_like(a1[0]))
+    ai = torch.where(cond, (r_min - l_max) * (b_min - t_max), torch.zeros_like(a1[0]))
 
-    diag_mask = torch.eye(a1.size(1), dtype=torch.bool,
-                          device=a1.device)
+    diag_mask = torch.eye(a1.size(1), dtype=torch.bool, device=a1.device)
     ai = ai.masked_fill(diag_mask, 0)
 
     ar = torch.nan_to_num(ai / a1)
@@ -175,13 +175,13 @@ def compute_alignment(bbox, mask):
 
     X = X.unsqueeze(-1) - X.unsqueeze(-2)
     idx = torch.arange(X.size(2), device=X.device)
-    X[:, :, idx, idx] = 1.
+    X[:, :, idx, idx] = 1.0
     X = X.abs().permute(0, 2, 1, 3)
-    X[~mask] = 1.
+    X[~mask] = 1.0
     X = X.permute(0, 3, 2, 1)
-    X[~mask] = 1.
+    X[~mask] = 1.0
     X = X.min(-1).values.min(-1).values
-    X.masked_fill_(X.eq(1.), 0.)
+    X.masked_fill_(X.eq(1.0), 0.0)
 
     X = -torch.log(1 - X)
 

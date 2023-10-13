@@ -5,16 +5,16 @@ from model.util import TransformerWithToken
 
 
 class Generator(nn.Module):
-    def __init__(self, dim_latent, num_label,
-                 d_model=512, nhead=8, num_layers=4):
+    def __init__(self, dim_latent, num_label, d_model=512, nhead=8, num_layers=4):
         super().__init__()
 
         self.fc_z = nn.Linear(dim_latent, d_model // 2)
         self.emb_label = nn.Embedding(num_label, d_model // 2)
         self.fc_in = nn.Linear(d_model, d_model)
 
-        te = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead,
-                                        dim_feedforward=d_model // 2)
+        te = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=d_model // 2
+        )
         self.transformer = nn.TransformerEncoder(te, num_layers=num_layers)
 
         self.fc_out = nn.Linear(d_model, 4)
@@ -34,8 +34,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, num_label, d_model=512,
-                 nhead=8, num_layers=4, max_bbox=50):
+    def __init__(self, num_label, d_model=512, nhead=8, num_layers=4, max_bbox=100):
         super().__init__()
 
         # encoder
@@ -43,9 +42,12 @@ class Discriminator(nn.Module):
         self.fc_bbox = nn.Linear(4, d_model)
         self.enc_fc_in = nn.Linear(d_model * 2, d_model)
 
-        self.enc_transformer = TransformerWithToken(d_model=d_model,
-                                                    dim_feedforward=d_model // 2,
-                                                    nhead=nhead, num_layers=num_layers)
+        self.enc_transformer = TransformerWithToken(
+            d_model=d_model,
+            dim_feedforward=d_model // 2,
+            nhead=nhead,
+            num_layers=num_layers,
+        )
 
         self.fc_out_disc = nn.Linear(d_model, 1)
 
@@ -53,10 +55,10 @@ class Discriminator(nn.Module):
         self.pos_token = nn.Parameter(torch.rand(max_bbox, 1, d_model))
         self.dec_fc_in = nn.Linear(d_model * 2, d_model)
 
-        te = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead,
-                                        dim_feedforward=d_model // 2)
-        self.dec_transformer = nn.TransformerEncoder(te,
-                                                     num_layers=num_layers)
+        te = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=d_model // 2
+        )
+        self.dec_transformer = nn.TransformerEncoder(te, num_layers=num_layers)
 
         self.fc_out_cls = nn.Linear(d_model, num_label)
         self.fc_out_bbox = nn.Linear(d_model, 4)
