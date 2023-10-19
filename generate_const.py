@@ -1,5 +1,6 @@
 import os
-os.environ['OMP_NUM_THREADS'] = '1'  # noqa
+
+os.environ["OMP_NUM_THREADS"] = "1"  # noqa
 
 import pickle
 import argparse
@@ -24,9 +25,9 @@ from clg.optim import AdamOptimizer, CMAESOptimizer
 from metric import compute_violation
 
 
-def save_gif(out_path, j, netG,
-             z_hist, label, mask, padding_mask,
-             dataset_colors, canvas_size):
+def save_gif(
+    out_path, j, netG, z_hist, label, mask, padding_mask, dataset_colors, canvas_size
+):
     mask = mask[j]
     _j = slice(j, j + 1)
 
@@ -45,12 +46,13 @@ def save_gif(out_path, j, netG,
             b = bbox[0][mask].cpu().numpy()
             l = label[0][mask].cpu().numpy()
 
-            convert_layout_to_image(
-                b, l, dataset_colors, canvas_size
-            ).save(tempdir + f'/{j}_{i:08d}.png')
+            convert_layout_to_image(b, l, dataset_colors, canvas_size).save(
+                tempdir + f"/{j}_{i:08d}.png"
+            )
 
-        subprocess.run(['convert', '-delay', '50',
-                        tempdir + f'/{j}_*.png', str(out_path)])
+        subprocess.run(
+            ["convert", "-delay", "50", tempdir + f"/{j}_*.png", str(out_path)]
+        )
 
 
 def main():
@@ -58,25 +60,38 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument('ckpt_path', type=str, help='checkpoint path')
-    parser.add_argument('--batch_size', type=int, default=32,
-                        help='batch size')
-    parser.add_argument('-o', '--out_path', type=str,
-                        default='output/generated_layouts.pkl',
-                        help='output pickle path')
-    parser.add_argument('--num_save', type=int, default=0,
-                        help='number of layouts to save as images')
-    parser.add_argument('--seed', type=int, help='manual seed')
+    parser.add_argument("ckpt_path", type=str, help="checkpoint path")
+    parser.add_argument("--batch_size", type=int, default=32, help="batch size")
+    parser.add_argument(
+        "-o",
+        "--out_path",
+        type=str,
+        default="output/generated_layouts.pkl",
+        help="output pickle path",
+    )
+    parser.add_argument(
+        "--num_save", type=int, default=0, help="number of layouts to save as images"
+    )
+    parser.add_argument("--seed", type=int, help="manual seed")
 
     # CLG specific options
-    parser.add_argument('--const_type', type=str,
-                        default='beautify', help='constraint type',
-                        choices=['beautify', 'relation'])
-    parser.add_argument('--optimizer', type=str,
-                        default='CMAES', help='inner optimizer',
-                        choices=['Adam', 'CMAES'])
-    parser.add_argument('--rel_ratio', type=float, default=0.1,
-                        help='ratio of relational constraints')
+    parser.add_argument(
+        "--const_type",
+        type=str,
+        default="beautify",
+        help="constraint type",
+        choices=["beautify", "relation"],
+    )
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="Adam",
+        help="inner optimizer",
+        choices=["Adam", "CMAES"],
+    )
+    parser.add_argument(
+        "--rel_ratio", type=float, default=0.1, help="ratio of relational constraints"
+    )
 
     args = parser.parse_args()
 
@@ -90,43 +105,57 @@ def main():
     # load checkpoint
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ckpt = torch.load(args.ckpt_path, map_location=device)
-    train_args = ckpt['args']
+    train_args = ckpt["args"]
 
     # setup transforms and constraints
     transforms = [AddCanvasElement()]
-    if args.const_type == 'relation':
+    if args.const_type == "relation":
         transforms += [AddRelation(args.seed, args.rel_ratio)]
         constraints = clg.const.relation
     else:
         constraints = clg.const.beautify
 
     # load test dataset
-    dataset = get_dataset(train_args['dataset'], 'test',
-                          T.Compose(transforms))
-    dataloader = DataLoader(dataset,
-                            batch_size=args.batch_size,
-                            num_workers=4,
-                            pin_memory=True,
-                            shuffle=False)
-    num_label = dataset.num_classes
+    dataset = get_dataset(train_args["dataset"], "test", T.Compose(transforms))
+    dataloader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        num_workers=4,
+        pin_memory=True,
+        shuffle=False,
+    )
+    num_label = dataset.num_classes - 1
 
     # setup model and load state
-    netG = Generator(train_args['latent_size'], num_label,
-                     d_model=train_args['G_d_model'],
-                     nhead=train_args['G_nhead'],
-                     num_layers=train_args['G_num_layers'],
-                     ).eval().requires_grad_(False).to(device)
-    netG.load_state_dict(ckpt['netG'])
+    netG = (
+        Generator(
+            train_args["latent_size"],
+            num_label,
+            d_model=train_args["G_d_model"],
+            nhead=train_args["G_nhead"],
+            num_layers=train_args["G_num_layers"],
+        )
+        .eval()
+        .requires_grad_(False)
+        .to(device)
+    )
+    netG.load_state_dict(ckpt["netG"])
 
-    netD = Discriminator(num_label,
-                         d_model=train_args['D_d_model'],
-                         nhead=train_args['D_nhead'],
-                         num_layers=train_args['D_num_layers'],
-                         ).eval().requires_grad_(False).to(device)
-    netD.load_state_dict(ckpt['netD'])
+    netD = (
+        Discriminator(
+            num_label,
+            d_model=train_args["D_d_model"],
+            nhead=train_args["D_nhead"],
+            num_layers=train_args["D_num_layers"],
+        )
+        .eval()
+        .requires_grad_(False)
+        .to(device)
+    )
+    netD.load_state_dict(ckpt["netD"])
 
     # setup optimizers
-    if args.optimizer == 'CMAES':
+    if args.optimizer == "CMAES":
         inner_optimizer = CMAESOptimizer(seed=args.seed)
     else:
         inner_optimizer = AdamOptimizer()
@@ -140,9 +169,9 @@ def main():
         mask = mask_c[:, 1:]
         padding_mask = ~mask
 
-        z = torch.randn(label.size(0), label.size(1),
-                        train_args['latent_size'],
-                        device=device)
+        z = torch.randn(
+            label.size(0), label.size(1), train_args["latent_size"], device=device
+        )
 
         z_hist = [z]
         for z in optimizer.generator(z, data):
@@ -151,7 +180,7 @@ def main():
 
         bbox = netG(z, label, padding_mask)
 
-        if args.const_type == 'relation':
+        if args.const_type == "relation":
             canvas = optimizer.bbox_canvas.to(bbox)
             canvas = canvas.expand(bbox.size(0), -1, -1)
             bbox_flatten = torch.cat([canvas, bbox], dim=1)[mask_c]
@@ -167,33 +196,41 @@ def main():
             l = label[j][mask_j].cpu().numpy()
 
             if len(results) < args.num_save:
-                out_path = out_dir / f'initial_{len(results)}.png'
+                out_path = out_dir / f"initial_{len(results)}.png"
                 convert_layout_to_image(
-                    bbox_init[j][mask_j].cpu().numpy(),
-                    l, dataset.colors, (120, 80)
+                    bbox_init[j][mask_j].cpu().numpy(), l, dataset.colors, (120, 80)
                 ).save(out_path)
 
-                out_path = out_dir / f'optimized_{len(results)}.png'
-                convert_layout_to_image(
-                    b, l, dataset.colors, (120, 80)
-                ).save(out_path)
+                out_path = out_dir / f"optimized_{len(results)}.png"
+                convert_layout_to_image(b, l, dataset.colors, (120, 80)).save(out_path)
 
-                out_path = out_dir / f'optimizing_{len(results)}.gif'
-                save_gif(out_path, j, netG,
-                         z_hist, label, mask, padding_mask,
-                         dataset.colors, (120, 80))
+                out_path = out_dir / f"optimizing_{len(results)}.gif"
+                save_gif(
+                    out_path,
+                    j,
+                    netG,
+                    z_hist,
+                    label,
+                    mask,
+                    padding_mask,
+                    dataset.colors,
+                    (120, 80),
+                )
+
+            else:
+                break
 
             results.append((b, l))
 
-    if args.const_type == 'relation':
+    if args.const_type == "relation":
         violation = sum(violation) / len(violation)
-        print(f'Relation violation: {violation:.2%}')
+        print(f"Relation violation: {violation:.2%}")
 
     # save results
-    with Path(args.out_path).open('wb') as fb:
+    with Path(args.out_path).open("wb") as fb:
         pickle.dump(results, fb)
-    print('Generated layouts are saved at:', args.out_path)
+    print("Generated layouts are saved at:", args.out_path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

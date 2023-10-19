@@ -15,6 +15,8 @@ from data.util import RelSize, RelLoc, detect_size_relation, detect_loc_relation
 class LayoutFID:
     def __init__(self, dataset_name, device="cpu"):
         num_label = 13 if dataset_name == "rico" else 5
+        if dataset_name == "visily":
+            num_label = 14
         self.model = LayoutNet(num_label).to(device)
 
         # load pre-trained LayoutNet
@@ -33,8 +35,9 @@ class LayoutFID:
             return
 
         feats = self.model.extract_features(bbox.detach(), label, padding_mask)
+        # print("feats", feats)
         features = self.real_features if real else self.fake_features
-        features.append(feats.detach().numpy())
+        features.append(feats.detach().cpu().numpy())
 
     def compute_score(self):
         feats_1 = np.concatenate(self.fake_features)

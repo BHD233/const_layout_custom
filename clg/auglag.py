@@ -2,10 +2,21 @@ import torch
 from torch_geometric.utils import to_dense_batch
 
 
-class AugLagMethod():
-    def __init__(self, netG, netD, inner_optimizer, constraints,
-                 alpha=3., l0=0., m0=1., iteration=5, tolerance=1e-8,
-                 clamp_f=True, raise_error_if_failed=False):
+class AugLagMethod:
+    def __init__(
+        self,
+        netG,
+        netD,
+        inner_optimizer,
+        constraints,
+        alpha=3.0,
+        l0=0.0,
+        m0=1.0,
+        iteration=5,
+        tolerance=1e-8,
+        clamp_f=True,
+        raise_error_if_failed=False,
+    ):
         self.netG = netG
         self.netD = netD
         self.inner_optimizer = inner_optimizer
@@ -23,7 +34,7 @@ class AugLagMethod():
 
         # bbox_canvas: [1, 1, 4]
         self.bbox_canvas = torch.tensor(
-            [[[.5, .5, 1., 1.]]],
+            [[[0.5, 0.5, 1.0, 1.0]]],
             dtype=torch.float,
         )
 
@@ -45,10 +56,9 @@ class AugLagMethod():
             bbox_c = torch.cat([canvas, bbox], dim=1)
             bbox_flatten = bbox_c[mask_c]
 
-        return torch.stack([
-            const(bbox_flatten, data)
-            for const in self.constraints
-        ], dim=-1)
+        return torch.stack(
+            [const(bbox_flatten, data) for const in self.constraints], dim=-1
+        )
 
     def build_Adam_objective(self, l, m, data, label, padding_mask, mask_c):
         def objective(z):
@@ -56,13 +66,14 @@ class AugLagMethod():
 
             f = self.f(bbox, label, padding_mask)
             if self.clamp_f:
-                f = torch.relu(f - self._f0[:f.size(0)])
+                f = torch.relu(f - self._f0[: f.size(0)])
             h = self.h(bbox, data, mask_c)
 
             h_sqr = h.square().sum(dim=-1)
             L = f + (l * h).sum(dim=-1) + m / 2 * h_sqr
 
             return L
+
         return objective
 
     def build_CMAES_objective(self, l, m, data, label, padding_mask, mask_c):
@@ -81,7 +92,7 @@ class AugLagMethod():
 
             f = self.f(bbox, _label, _padding_mask).view(B, P)
             if self.clamp_f:
-                f = torch.relu(f - self._f0[:f.size(0)])
+                f = torch.relu(f - self._f0[: f.size(0)])
             h = self.h(bbox.view(B, P, N, D), data, mask_c)
 
             h_sqr = h.square().sum(dim=-1)
@@ -93,7 +104,7 @@ class AugLagMethod():
         return objective
 
     def generator(self, z, data):
-        assert data.attr[0]['has_canvas_element']
+        assert data.attr["has_canvas_element"][0]
 
         C = len(self.constraints)
         l = torch.full((z.size(0), C), self.l0).to(z)
@@ -108,7 +119,7 @@ class AugLagMethod():
 
         if self.clamp_f:
             self._f0 = self.f(bbox, label, padding_mask)
-            if 'CMAES' in str(type(self.inner_optimizer)):
+            if "CMAES" in str(type(self.inner_optimizer)):
                 self._f0 = self._f0.unsqueeze(1)
 
         h = self.h(bbox, data, mask_c)
@@ -119,7 +130,7 @@ class AugLagMethod():
             if stop.all():
                 break
 
-            if 'CMAES' in str(type(self.inner_optimizer)):
+            if "CMAES" in str(type(self.inner_optimizer)):
                 build = self.build_CMAES_objective
             else:
                 build = self.build_Adam_objective
@@ -142,7 +153,7 @@ class AugLagMethod():
             stop = m / 2 * h_sqr < self.tolerance
 
         if self.raise_error and not stop.all():
-            raise RuntimeError('Failed to find solution')
+            raise RuntimeError("Failed to find solution")
 
     def optimize(self, z, data):
         for z_opt in self.generator(z, data):

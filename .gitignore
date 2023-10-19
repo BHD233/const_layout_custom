@@ -3,3 +3,11 @@
 *.png
 *.png
 *.png
+*.json
+*.tar
+*.pyc
+*.pkl
+*.pt
+*.pyc
+data/__pycache__/__init__.cpython-38.pyc
+data/dataset/.DS_Store
