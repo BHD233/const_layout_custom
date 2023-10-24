@@ -102,8 +102,8 @@ class Visily(BaseDataset):
 
                 elements = parent["children"]
                 N = len(elements)
-                # if N == 0 or 12 < N:
-                #     continue
+                if N == 0 or 12 < N:
+                    continue
 
                 boxes = []
                 labels = []
@@ -125,16 +125,29 @@ class Visily(BaseDataset):
                             and element["data"]["height"] is not None
                             else 10
                         )
+                    else:
+                        x1 = element["position"]["x"]
+                        y1 = element["position"]["y"]
+                        width = (
+                            element["width"]
+                            if "width" in element and element["width"] is not None
+                            else 10
+                        )
+                        height = (
+                            element["height"]
+                            if "height" in element and element["height"] is not None
+                            else 10
+                        )
 
-                        xc = x1 + width / 2.0
-                        yc = y1 + height / 2.0
-                        b = [xc / W, yc / H, width / W, height / H]
+                    xc = x1 + width / 2.0
+                    yc = y1 + height / 2.0
+                    b = [xc / W, yc / H, width / W, height / H]
 
-                        # label
-                        l = normalize_type(element["type"], self.std_labels)
-                        if l is not None:
-                            labels.append(self.label2index[l])
-                            boxes.append(b)
+                    # label
+                    l = normalize_type(element["type"], self.std_labels)
+                    if l is not None:
+                        labels.append(self.label2index[l])
+                        boxes.append(b)
 
                 boxes = torch.tensor(boxes, dtype=torch.float)
                 labels = torch.tensor(labels, dtype=torch.long)
