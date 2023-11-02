@@ -38,7 +38,7 @@ def normalize_type(element_type, labels):
         return "CHECKBOX"
 
     if element_type in ["TRIANGLE", "OVAL", "RECTANGLE", "DIVIDER", "SLIDER"]:
-        return "SHAPE"
+        return None
 
     if "SIDEBAR_MENU" in element_type:
         return "SIDEBAR_MENU"
@@ -88,6 +88,21 @@ class Visily(BaseDataset):
         super().download()
 
     def process(self):
+        std_labels = [
+            "BUTTON",
+            "CHART",
+            "TABLE",
+            "TEXT",
+            "ICON",
+            "TABBAR_MENU",
+            "CONTAINER",
+            "TEXTBOX",
+            "CHECKBOX",
+            "IMAGE",
+            "HEADER_MENU",
+            "SIDEBAR_MENU",
+            "TAG",
+        ]
         data_list = []
         raw_dir = Path(self.raw_dir) / "children_data"
 
@@ -142,23 +157,24 @@ class Visily(BaseDataset):
                     b = [xc / W, yc / H, width / W, height / H]
 
                     # label
-                    l = normalize_type(element["type"], self.std_labels)
+                    l = normalize_type(element["type"], std_labels)
                     if l is not None:
                         labels.append(self.label2index[l])
                         boxes.append(b)
 
-                boxes = torch.tensor(boxes, dtype=torch.float)
-                labels = torch.tensor(labels, dtype=torch.long)
+                if len(boxes) > 0:
+                    boxes = torch.tensor(boxes, dtype=torch.float)
+                    labels = torch.tensor(labels, dtype=torch.long)
 
-                data = Data(x=boxes, y=labels)
-                data.attr = {
-                    "name": json_path,
-                    "width": W,
-                    "height": H,
-                    "filtered": True,
-                    "has_canvas_element": False,
-                }
-                data_list.append(data)
+                    data = Data(x=boxes, y=labels)
+                    data.attr = {
+                        "name": json_path,
+                        "width": W,
+                        "height": H,
+                        "filtered": True,
+                        "has_canvas_element": False,
+                    }
+                    data_list.append(data)
 
         # shuffle with seed
         generator = torch.Generator().manual_seed(0)

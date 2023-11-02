@@ -1,5 +1,7 @@
 import os
 import argparse
+from pathlib import Path
+
 
 os.environ["OMP_NUM_THREADS"] = "1"  # noqa
 
@@ -72,7 +74,8 @@ def main():
     args = parser.parse_args()
     print(args)
 
-    out_dir = init_experiment(args, "LayoutGAN++")
+    # out_dir = init_experiment(args, "LayoutGAN++")
+    out_dir = Path("/content/drive/MyDrive/DATA_TRAIN/output/visily/LayoutGAN++")
     writer = SummaryWriter(out_dir)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("device", device)
@@ -82,6 +85,7 @@ def main():
         transforms = [T.RandomApply([HorizontalFlip()], 0.5)] + transforms
 
     train_dataset = get_dataset(args.dataset, "train", transform=T.Compose(transforms))
+    print(train_dataset)
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
@@ -101,7 +105,7 @@ def main():
 
     num_label = train_dataset.num_classes
 
-    ckpt = torch.load("./model/model_best.pth.tar", map_location=device)
+    # ckpt = torch.load("./model/model_best.pth.tar", map_location=device)
 
     # setup model
     netG = Generator(
@@ -111,7 +115,7 @@ def main():
         nhead=args.G_nhead,
         num_layers=args.G_num_layers,
     ).to(device)
-    netG.load_state_dict(ckpt["netG"])
+    # netG.load_state_dict(ckpt["netG"])
 
     netD = Discriminator(
         num_label,
@@ -119,7 +123,7 @@ def main():
         nhead=args.D_nhead,
         num_layers=args.D_num_layers,
     ).to(device)
-    netD.load_state_dict(ckpt["netD"])
+    # netD.load_state_dict(ckpt["netD"])
 
     # prepare for evaluation
     fid_train = LayoutFID(args.dataset, device)
