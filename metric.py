@@ -16,13 +16,18 @@ class LayoutFID:
     def __init__(self, dataset_name, device="cpu"):
         num_label = 13 if dataset_name == "rico" else 5
         if dataset_name == "visily":
-            num_label = 14
+            num_label = 13
         self.model = LayoutNet(num_label).to(device)
 
         # load pre-trained LayoutNet
         tmpl = "./pretrained/layoutnet_{}.pth.tar"
         if dataset_name != "visily":
             state_dict = torch.load(tmpl.format(dataset_name), map_location=device)
+            self.model.load_state_dict(state_dict)
+            self.model.requires_grad_(False)
+            self.model.eval()
+        else:
+            state_dict = torch.load(tmpl.format("rico"), map_location=device)
             self.model.load_state_dict(state_dict)
             self.model.requires_grad_(False)
             self.model.eval()

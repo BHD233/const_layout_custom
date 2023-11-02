@@ -64,7 +64,6 @@ class Visily(BaseDataset):
         "HEADER_MENU",
         "SIDEBAR_MENU",
         "TAG",
-        "SHAPE",
     ]
 
     def __init__(self, split="train", transform=None):
@@ -83,7 +82,6 @@ class Visily(BaseDataset):
             "HEADER_MENU",
             "SIDEBAR_MENU",
             "TAG",
-            "SHAPE",
         ]
 
     def download(self):
@@ -152,16 +150,15 @@ class Visily(BaseDataset):
                 boxes = torch.tensor(boxes, dtype=torch.float)
                 labels = torch.tensor(labels, dtype=torch.long)
 
-                if len(boxes) > 1:
-                    data = Data(x=boxes, y=labels)
-                    data.attr = {
-                        "name": json_path,
-                        "width": W,
-                        "height": H,
-                        "filtered": True,
-                        "has_canvas_element": False,
-                    }
-                    data_list.append(data)
+                data = Data(x=boxes, y=labels)
+                data.attr = {
+                    "name": json_path,
+                    "width": W,
+                    "height": H,
+                    "filtered": True,
+                    "has_canvas_element": False,
+                }
+                data_list.append(data)
 
         # shuffle with seed
         generator = torch.Generator().manual_seed(0)
